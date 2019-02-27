@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 from gridenv import GridEnv
+from navigator import Navigator
 import numpy as np
 import time
 
@@ -125,45 +126,27 @@ def a_star(env, start, goal):
             g_score[neigh[0]][neigh[1]] = cur_g_score
             f_score[neigh[0]][neigh[1]] = cur_g_score + _a_star_estimate(neigh, goal)
 
-def execute_path(env, path):
-    prevPos = None
-    prevPosCnt = 0
-    path.pop(0)
-    while not env.is_done and len(path) > 0:
-        pos = env.get_agent_pos()
-        needed_dir = np.subtract(path[0], pos)
-        actual_dir = env.get_agent_dir()
-        needed_theta = np.arctan2(needed_dir[1], needed_dir[0])
-        actual_theta = np.arctan2(actual_dir[1], actual_dir[0])
-
-        # Different between the direction we need to face and the agent's current direction.
-        theta_diff = (needed_theta - actual_theta) % (2 * np.pi)
-
-        # Calculate what multiple of pi/2 theta_diff is nearest to.
-        theta_mult = int((theta_diff * (2 / np.pi)) + 0.5)
-
-        if theta_mult == 0:
-            # Go forward.
-            env.step(GridEnv.ACTIONS.forward)
-            path.pop(0)
-        elif theta_mult == 1:
-            # Turn left.
-            env.step(GridEnv.ACTIONS.right)
-        else:
-            # Turn right, including for U-turns.
-            env.step(GridEnv.ACTIONS.left)
-        env.render()
-        time.sleep(0.01)
-
-        prevPos = pos # DEBUG
-
 def main():
     env = GridEnv()
     try:
         while True:
             env.reset()
-            path = a_star(env, env.get_agent_pos(), env.find_goals()[0])
-            execute_path(env, path)
+            goal = env.find_goals()[0]
+            path = a_star(env, env.get_agent_pos(), goal)
+            nav = Navigator(env, path)
+            print("Executing plan...")
+            while (nav.has_next()):
+                nav.do_next_step()
+                env.render()
+                time.sleep(0.1)
+            print("Plan completed")
+
+            pos = env.get_agent_pos()
+            if pos[0] == goal[0] and pos[1] == goal[1]:
+                print("Goal reached")
+            else:
+                print("Goal not reached")
+            print()
     except KeyboardInterrupt:
         print("program exited...")
     print("done")
